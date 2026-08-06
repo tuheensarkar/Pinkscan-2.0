@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local Python environments
+backend/venv/
+venv/
+.venv/
+
+# Local databases and generated reports
+backend/pinkscan.db
+backend/media/reports/*.pdf
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+backend/.env
+frontend/.env*
+
+# OS / logs
+.DS_Store
+Thumbs.db
+*.log
