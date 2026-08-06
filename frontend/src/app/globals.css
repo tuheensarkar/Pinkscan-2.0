@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-paper: var(--paper);
+  --color-scrub: var(--scrub);
+  --color-ink: var(--clinical-ink);
+  --color-teal: var(--teal);
+  --color-rose-med: var(--mammogram-rose);
+  --color-clay: var(--amber-clay);
+  --radius: var(--radius);
+}
+
+@layer base {
+  :root {
+    --clinical-ink: #24323a;
+    --paper: #fdf7f9;
+    --scrub: #fce7f3;
+    --teal: #F62477;
+    --mammogram-rose: #FF0052;
+    --amber-clay: #b7791f;
+
+    --background: var(--paper);
+    --foreground: var(--clinical-ink);
+    --card: #fffafc;
+    --card-foreground: var(--clinical-ink);
+    --popover: #fffafc;
+    --popover-foreground: var(--clinical-ink);
+    --primary: var(--teal);
+    --primary-foreground: #ffffff;
+    --secondary: var(--mammogram-rose);
+    --secondary-foreground: #ffffff;
+    --muted: #f3e7ec;
+    --muted-foreground: #647071;
+    --accent: var(--scrub);
+    --accent-foreground: var(--clinical-ink);
+    --destructive: #FF0052;
+    --destructive-foreground: #ffffff;
+    --border: #e5d3dc;
+    --input: #dcc4cf;
+    --ring: #F62477;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: #1d1116;
+    --foreground: #f4eef1;
+    --card: #2a1820;
+    --card-foreground: #f4eef1;
+    --popover: #2a1820;
+    --popover-foreground: #f4eef1;
+    --primary: #FF0052;
+    --primary-foreground: #fdf7f9;
+    --secondary: #F62477;
+    --secondary-foreground: #fdf7f9;
+    --muted: #321e27;
+    --muted-foreground: #b4a5ac;
+    --accent: #3b0a18;
+    --accent-foreground: #f4eef1;
+    --destructive: #FF0052;
+    --destructive-foreground: #fdf7f9;
+    --border: #4a2a36;
+    --input: #5a3644;
+    --ring: #FF0052;
+    --paper: #1d1116;
+    --scrub: #3b0a18;
+    --clinical-ink: #f4eef1;
+    --teal: #FF0052;
+    --mammogram-rose: #F62477;
+    --amber-clay: #d69b42;
+  }
+
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+
+  body {
+    background:
+      linear-gradient(180deg, rgba(252, 231, 243, 0.62), rgba(253, 247, 249, 0.92) 22rem),
+      var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  }
+
+  h1,
+  .font-display {
+    font-family: var(--font-display), Georgia, serif;
+    font-variation-settings: "SOFT" 60, "WONK" 0;
+    letter-spacing: 0;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  }
+
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--ring) 42%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .app-shell {
+    background:
+      linear-gradient(90deg, rgba(252, 231, 243, 0.62), transparent 34rem),
+      var(--paper);
+  }
+
+  .patient-surface {
+    border: 1px solid #ecdfe5;
+    background: rgba(255, 250, 252, 0.86);
+    box-shadow: 0 16px 38px rgba(36, 50, 58, 0.06);
+  }
+
+  .clinical-surface {
+    border: 1px solid #e4cad5;
+    background: rgba(254, 252, 253, 0.92);
+    box-shadow: 0 10px 24px rgba(36, 50, 58, 0.045);
+  }
+
+  .data-panel {
+    border: 1px solid #e2c8d3;
+    background: linear-gradient(180deg, #fffafc, #fdf2f6);
+  }
+
+  .nav-shell {
+    border: 1px solid rgba(246, 36, 119, 0.12);
+    background: rgba(255, 250, 252, 0.92);
+    box-shadow: 0 18px 34px rgba(246, 36, 119, 0.08);
+  }
+
+  .form-field {
+    border: 1px solid var(--input);
+    background: rgba(255, 250, 252, 0.92);
+  }
+
+  .eyebrow {
+    color: var(--teal);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dark .app-shell,
+  .dark body {
+    background: #1d1116;
+  }
+
+  .dark .patient-surface,
+  .dark .clinical-surface,
+  .dark .data-panel,
+  .dark .nav-shell,
+  .dark .form-field {
+    border-color: #4a2a36;
+    background: rgba(42, 24, 32, 0.9);
+  }
+}
