@@ -7,7 +7,7 @@ PinkScan is a professional, production-ready full-stack application for breast c
 - **AI Prediction**: Built with scikit-learn & XGBoost, evaluated and serialized.
 - **Explainable AI**: SHAP integration to provide feature attribution (waterfall/bar charts).
 - **Batch Processing**: CSV upload capabilities for Doctors to predict on multiple patient records.
-- **Automated PDF Reports**: High-quality downloadable patient reports using QR codes and graphical predictions.
+- **Automated PDF Reports**: High-quality downloadable patient reports 
 - **Community Forum**: Real-time Q&A between patients and doctors.
 - **Appointments**: Complete doctor-patient scheduling system.
 - **Modern UI**: Next.js 15, TailwindCSS, shadcn/ui, Recharts.
@@ -29,8 +29,8 @@ Create a `.env` file in the root directory (or respective frontend/backend direc
 
 **Backend `.env`**
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/pinkscan
-SECRET_KEY=yoursupersecretkey
+DATABASE_URL=your-database-url
+SECRET_KEY=your-supersecret-key
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 SMTP_HOST=smtp-relay.brevo.com
@@ -45,11 +45,6 @@ FRONTEND_URL=http://localhost:3000
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 ```
-
-### 2. Database (PostgreSQL)
-You can start a Postgres instance easily with Docker:
-```bash
-docker run --name pinkscan-db -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password -e POSTGRES_DB=pinkscan -p 5432:5432 -d postgres
 ```
 
 ### 3. Backend Setup & ML Training
