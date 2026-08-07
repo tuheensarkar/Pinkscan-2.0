@@ -11,13 +11,13 @@ from app.db.models import User
 from app.schemas import ForgotPasswordRequest, ResetPasswordWithOtp, UserCreate, Token
 from app.services.email_service import (
     generate_otp,
-    generate_verification_token,
     send_password_reset_otp,
-    send_verification_email,
+    send_verification_otp,
 )
 
 router = APIRouter()
 PASSWORD_RESET_OTP_EXPIRE_MINUTES = 10
+EMAIL_VERIFICATION_OTP_EXPIRE_MINUTES = 10
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -29,7 +29,6 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)) -> Dict[s
             detail="The user with this email already exists in the system",
         )
     hashed_password = security.get_password_hash(user_in.password)
-    verification_token = generate_verification_token()
 
     skip_verify = not all([settings.SMTP_HOST, settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_FROM])
 
@@ -43,7 +42,6 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)) -> Dict[s
         specialization=user_in.specialization,
         hospital_name=user_in.hospital_name,
         is_verified=False,
-        email_verification_token=verification_token,
     )
     db.add(db_user)
     db.flush()
@@ -51,15 +49,19 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)) -> Dict[s
     send_err = ""
     if skip_verify:
         db_user.is_verified = True
-        db_user.email_verification_token = None
     else:
-        ok, err_detail = await send_verification_email(db_user.email, db_user.full_name, verification_token)
+        otp = generate_otp()
+        db_user.email_verification_otp_hash = security.get_password_hash(otp)
+        db_user.email_verification_otp_expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=EMAIL_VERIFICATION_OTP_EXPIRE_MINUTES
+        )
+        ok, err_detail = await send_verification_otp(db_user.email, db_user.full_name, otp)
         send_err = err_detail
         # If SMTP delivery fails, fall back to auto-verify so users can still log in.
-        # Verification still requires email when delivery is working.
         if not ok:
             db_user.is_verified = True
-            db_user.email_verification_token = None
+            db_user.email_verification_otp_hash = None
+            db_user.email_verification_otp_expires_at = None
 
     db.commit()
     db.refresh(db_user)
@@ -73,9 +75,6 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)) -> Dict[s
         "is_verified": db_user.is_verified,
         "created_at": db_user.created_at,
     }
-
-    if db_user.email_verification_token:
-        result["verification_link"] = f"{settings.FRONTEND_URL}/auth/verify-email?token={db_user.email_verification_token}"
 
     if send_err:
         result["email_warning"] = (
@@ -104,7 +103,7 @@ def login_access_token(
     if not user.is_verified:
         raise HTTPException(
             status_code=403,
-            detail="Email not verified. Please check your inbox or request a new verification link.",
+            detail="Email not verified. Please check your inbox or request a new verification code.",
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -122,16 +121,32 @@ def login_access_token(
     }
 
 
-@router.post("/verify-email", status_code=status.HTTP_200_OK)
-def verify_email(token: str = Query(..., description="Email verification token"), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email_verification_token == token).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired verification link.",
-        )
+@router.post("/verify-email-otp", status_code=status.HTTP_200_OK)
+def verify_email_otp(email: str = Query(...), otp: str = Query(...), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    invalid_error = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Invalid or expired verification code.",
+    )
+    if not user or not user.email_verification_otp_hash or not user.email_verification_otp_expires_at:
+        raise invalid_error
+
+    expires_at = user.email_verification_otp_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
+        user.email_verification_otp_hash = None
+        user.email_verification_otp_expires_at = None
+        db.commit()
+        raise invalid_error
+
+    if not security.verify_password(otp, user.email_verification_otp_hash):
+        raise invalid_error
+
     user.is_verified = True
-    user.email_verification_token = None
+    user.email_verification_otp_hash = None
+    user.email_verification_otp_expires_at = None
     db.commit()
     return {
         "detail": "Email verified successfully. You can now sign in.",
@@ -200,36 +215,34 @@ def reset_password(payload: ResetPasswordWithOtp, db: Session = Depends(get_db))
 async def resend_verification(email: str = Query(..., description="Account email"), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
     if not user:
-        return {"detail": "If an account exists with this email, a new verification link has been sent."}
+        return {"detail": "If an account exists with this email, a new verification code has been sent."}
     if user.is_verified:
         return {"detail": "This email is already verified."}
 
-    new_token = user.email_verification_token or generate_verification_token()
-    user.email_verification_token = new_token
+    otp = generate_otp()
+    user.email_verification_otp_hash = security.get_password_hash(otp)
+    user.email_verification_otp_expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=EMAIL_VERIFICATION_OTP_EXPIRE_MINUTES
+    )
     db.commit()
 
-    sent = False
-    err = ""
     smtp_configured = all([settings.SMTP_HOST, settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_FROM])
+    sent, err = (True, "")
     if smtp_configured:
-        sent, err = await send_verification_email(user.email, user.full_name, new_token)
-    else:
-        sent = True
+        sent, err = await send_verification_otp(user.email, user.full_name, otp)
 
     payload: Dict[str, Any] = {
-        "detail": "If an account exists with this email, a new verification link has been sent.",
+        "detail": "If an account exists with this email, a new verification code has been sent.",
     }
     if not sent and smtp_configured:
-        # Fallback: auto-verify so user can continue despite broken SMTP setup
         user.is_verified = True
-        user.email_verification_token = None
+        user.email_verification_otp_hash = None
+        user.email_verification_otp_expires_at = None
         db.commit()
         payload["detail"] = (
             "We couldn't deliver your verification email (SMTP/Brevo misconfigured). We auto-verified your account so you can sign in immediately."
         )
         payload["email_error_detail"] = err
-    elif sent and user.email_verification_token:
-        payload["verification_link"] = f"{settings.FRONTEND_URL}/auth/verify-email?token={user.email_verification_token}"
 
     return payload
 
@@ -249,7 +262,8 @@ def debug_admin_verify(
         raise HTTPException(status_code=404, detail="No account with that email was found.")
     was_verified = user.is_verified
     user.is_verified = True
-    user.email_verification_token = None
+    user.email_verification_otp_hash = None
+    user.email_verification_otp_expires_at = None
     db.commit()
     return {
         "detail": "Account verified." if not was_verified else "Account was already verified.",

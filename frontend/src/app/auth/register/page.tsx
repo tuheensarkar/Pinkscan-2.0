@@ -3,14 +3,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Activity, AlertTriangle, CheckCircle2, ExternalLink, Mail } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Mail, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/axios"
 
 type RegisterState = {
     email: string
     isVerified: boolean
-    verificationLink?: string
     emailWarning?: string
 }
 
@@ -20,7 +19,11 @@ export default function RegisterPage() {
     })
     const [loading, setLoading] = useState(false)
     const [resending, setResending] = useState(false)
+    const [verifying, setVerifying] = useState(false)
     const [error, setError] = useState("")
+    const [otpError, setOtpError] = useState("")
+    const [otp, setOtp] = useState("")
+    const [otpSuccess, setOtpSuccess] = useState(false)
     const [result, setResult] = useState<RegisterState | null>(null)
 
     const handleRegister = async (e: React.FormEvent) => {
@@ -32,7 +35,6 @@ export default function RegisterPage() {
             setResult({
                 email: data.email,
                 isVerified: !!data.is_verified,
-                verificationLink: data.verification_link,
                 emailWarning: data.email_warning,
             })
         } catch (err: unknown) {
@@ -50,17 +52,11 @@ export default function RegisterPage() {
     const handleResend = async () => {
         if (!result) return
         setResending(true)
-        setError("")
+        setOtpError("")
         try {
-            const { data } = await api.post(
+            await api.post(
                 `/auth/resend-verification?email=${encodeURIComponent(result.email)}`,
             )
-            if (data.verification_link) {
-                setResult({ ...result, verificationLink: data.verification_link })
-            }
-            if (data.email_error_detail) {
-                setResult(prev => prev ? { ...prev, emailWarning: data.detail } : prev)
-            }
         } catch {
             // Silent success to avoid leaking user existence
         } finally {
@@ -68,8 +64,55 @@ export default function RegisterPage() {
         }
     }
 
-    if (result?.isVerified && !result.verificationLink) {
-        // Auto-verified fallback: user can sign in immediately, optionally with a warning.
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!result) return
+        setVerifying(true)
+        setOtpError("")
+        try {
+            await api.post(
+                `/auth/verify-email-otp?email=${encodeURIComponent(result.email)}&otp=${encodeURIComponent(otp)}`,
+            )
+            setOtpSuccess(true)
+        } catch (err: unknown) {
+            let msg = "Invalid or expired code. Please try again."
+            if (err && typeof err === "object" && "response" in err) {
+                const resp = (err as { response?: { data?: { detail?: string } } }).response
+                msg = resp?.data?.detail || msg
+            }
+            setOtpError(msg)
+        } finally {
+            setVerifying(false)
+        }
+    }
+
+    if (otpSuccess) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-paper p-4 py-12">
+                <div className="patient-surface w-full max-w-md rounded-lg p-8">
+                    <div className="text-center">
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-teal/30 bg-scrub text-teal">
+                            <CheckCircle2 className="h-7 w-7" />
+                        </div>
+                        <h1 className="font-display text-3xl font-semibold text-ink">Email verified</h1>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                            Your account is ready. Sign in to continue to the PinkScan workspace.
+                        </p>
+                    </div>
+                    <div className="mt-7 space-y-3">
+                        <Link href="/auth/login">
+                            <Button className="h-11 w-full rounded-md bg-teal text-white hover:bg-teal/90">
+                                Sign in now
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    if (result?.isVerified) {
+        // Auto-verified fallback (SMTP not configured or delivery failed): user can sign in immediately.
         return (
             <div className="flex min-h-screen items-center justify-center bg-paper p-4 py-12">
                 <div className="patient-surface w-full max-w-md rounded-lg p-8">
@@ -110,46 +153,49 @@ export default function RegisterPage() {
             <div className="flex min-h-screen items-center justify-center bg-paper p-4 py-12">
                 <div className="patient-surface w-full max-w-md rounded-lg p-8">
                     <div className="text-center">
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-teal/30 bg-scrub text-teal">
-                            <Mail className="h-6 w-6" />
+                        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-teal/30 bg-scrub text-teal">
+                            <ShieldCheck className="h-5 w-5" />
                         </div>
-                        <h1 className="font-display text-3xl font-semibold text-ink">Check your inbox</h1>
-                        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                            We&apos;ve sent a verification email to{" "}
+                        <h1 className="font-display text-3xl font-semibold text-ink">Enter your code</h1>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            We&apos;ve sent a 6-digit verification code to{" "}
                             <span className="font-semibold text-ink">{result.email}</span>.
-                            Click the link in the email to verify your address before signing in.
                         </p>
-                        {result.verificationLink && (
-                            <div className="mt-5 rounded-md border border-border bg-card p-4 text-left text-xs leading-5 text-muted-foreground">
-                                <p className="mb-2 font-semibold text-ink">Development shortcut</p>
-                                <a
-                                    href={result.verificationLink}
-                                    className="inline-flex items-center gap-1 break-all rounded bg-[#fdf2f8] px-2 py-1 font-medium text-teal hover:underline"
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                >
-                                    Open verification link <ExternalLink className="h-3 w-3" />
-                                </a>
-                            </div>
-                        )}
                     </div>
-                    <div className="mt-7 space-y-3">
+                    <form className="mt-8 space-y-5" onSubmit={handleVerifyOtp}>
+                        {otpError && <div className="rounded-md border border-[#e4b2c1] bg-[#fff1f4] p-3 text-sm font-medium text-rose-med">{otpError}</div>}
+                        <label className="block">
+                            <span className="mb-1 block text-sm font-semibold text-ink">Verification code</span>
+                            <input
+                                type="text"
+                                required
+                                value={otp}
+                                onChange={event => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                                placeholder="6-digit code"
+                                inputMode="numeric"
+                                className="form-field w-full rounded-md px-3 py-2 text-sm tracking-[0.3em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/35"
+                            />
+                        </label>
+                        <Button type="submit" className="h-11 w-full bg-teal text-white hover:bg-teal/90" disabled={verifying || otp.length !== 6}>
+                            {verifying ? "Verifying..." : "Verify email"}
+                        </Button>
                         <Button
+                            type="button"
                             onClick={handleResend}
                             variant="outline"
                             className="h-11 w-full rounded-md bg-card"
                             disabled={resending}
                         >
-                            {resending ? "Resending..." : "Resend verification email"}
+                            {resending ? "Resending..." : "Resend code"}
                         </Button>
                         <Link href="/auth/login">
                             <Button variant="ghost" className="h-11 w-full rounded-md font-semibold text-teal">
                                 Go to sign in
                             </Button>
                         </Link>
-                    </div>
+                    </form>
                     <p className="mt-6 text-center text-xs text-muted-foreground">
-                        <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
+                        <Mail className="mr-1 inline h-3.5 w-3.5" />
                         Didn&apos;t get the email? Check your spam folder before resending.
                     </p>
                 </div>
