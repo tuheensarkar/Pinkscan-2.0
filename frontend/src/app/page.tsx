@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import Image from "next/image"
 import { Activity, ArrowRight, BookOpen, FileText, ShieldCheck, Stethoscope } from "lucide-react"
 import { RiskLens } from "@/components/RiskLens"
 
@@ -27,8 +28,8 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 px-4 py-4 lg:px-10">
       <div className="nav-shell mx-auto flex h-16 max-w-7xl items-center gap-4 rounded-full border border-white/30 bg-white/60 px-4 shadow-lg shadow-black/5 backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/50">
           <Link className="flex items-center gap-3" href="/">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-teal/30 bg-scrub/80 text-teal backdrop-blur-sm">
-              <Activity className="h-4 w-4" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-teal/30 bg-scrub/80 backdrop-blur-sm overflow-hidden">
+              <Image src="/logo.png" alt="PinkScan Logo" width={36} height={36} className="object-cover" />
             </div>
             <span className="font-display text-xl font-semibold text-ink">PinkScan</span>
           </Link>

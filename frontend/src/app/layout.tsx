@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   title: "PinkScan - AI Breast Cancer Risk Assessment",
   description:
     "PinkScan is a clinical AI platform for breast cancer risk assessment using XGBoost and SHAP explainability. Secure, fast, and transparent.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

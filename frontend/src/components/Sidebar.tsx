@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import {
@@ -44,8 +45,8 @@ export default function Sidebar() {
         <aside className="nav-shell fixed inset-y-4 left-4 z-20 flex w-64 flex-col rounded-lg">
             <div className="border-b border-border px-5 py-5">
                 <Link href="/dashboard" className="group flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-teal/30 bg-scrub text-teal">
-                        <Activity className="h-4 w-4" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-teal/30 bg-scrub overflow-hidden">
+                        <Image src="/logo.png" alt="PinkScan Logo" width={36} height={36} className="object-cover" />
                     </div>
                     <div>
                         <p className="font-display text-xl font-semibold leading-none text-ink">PinkScan</p>

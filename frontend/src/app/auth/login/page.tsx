@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { Activity, Mail, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/axios"
@@ -123,8 +124,8 @@ export default function LoginPage() {
         <div className="flex min-h-screen items-center justify-center bg-paper p-4">
             <div className="patient-surface w-full max-w-md rounded-lg p-8">
                 <div className="text-center">
-                    <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-teal/30 bg-scrub text-teal">
-                        <Activity className="h-5 w-5" />
+                    <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-teal/30 bg-scrub overflow-hidden">
+                        <Image src="/logo.png" alt="PinkScan Logo" width={44} height={44} className="object-cover" />
                     </div>
                     <h1 className="font-display text-3xl font-semibold text-ink">Continue your care workspace</h1>
                     <p className="mt-2 text-sm text-muted-foreground">Sign in to access assessments and reports.</p>
