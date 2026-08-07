@@ -30,7 +30,7 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)) -> Dict[s
         )
     hashed_password = security.get_password_hash(user_in.password)
 
-    skip_verify = not all([settings.SMTP_HOST, settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_FROM])
+    skip_verify = not all([settings.BREVO_API_KEY, settings.SMTP_FROM])
 
     db_user = User(
         email=user_in.email,
@@ -226,7 +226,7 @@ async def resend_verification(email: str = Query(..., description="Account email
     )
     db.commit()
 
-    smtp_configured = all([settings.SMTP_HOST, settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_FROM])
+    smtp_configured = all([settings.BREVO_API_KEY, settings.SMTP_FROM])
     sent, err = (True, "")
     if smtp_configured:
         sent, err = await send_verification_otp(user.email, user.full_name, otp)

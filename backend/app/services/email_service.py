@@ -1,14 +1,16 @@
 import asyncio
 import logging
 import secrets
-import smtplib
-from email.message import EmailMessage
 from email.utils import parseaddr
 from typing import Optional, Tuple
+
+import httpx
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 def generate_otp() -> str:
@@ -17,32 +19,40 @@ def generate_otp() -> str:
 
 def _send_email(email: str, subject: str, text: str, html: str) -> Tuple[bool, str]:
     try:
-        _, sender_email = parseaddr(settings.SMTP_FROM)
+        sender_name, sender_email = parseaddr(settings.SMTP_FROM)
         if not sender_email:
             return False, "SMTP_FROM must include a valid sender email address."
 
-        message = EmailMessage()
-        message["From"] = settings.SMTP_FROM
-        message["To"] = email
-        message["Subject"] = subject
-        message.set_content(text)
-        message.add_alternative(html, subtype="html")
+        payload = {
+            "sender": {"name": sender_name or "PinkScan", "email": sender_email},
+            "to": [{"email": email}],
+            "subject": subject,
+            "htmlContent": html,
+            "textContent": text,
+        }
+        headers = {
+            "api-key": settings.BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "accept": "application/json",
+        }
 
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=30) as smtp:
-            smtp.starttls()
-            smtp.login(settings.SMTP_USER, settings.SMTP_PASS)
-            smtp.send_message(message, from_addr=sender_email, to_addrs=[email])
+        response = httpx.post(BREVO_API_URL, json=payload, headers=headers, timeout=30)
 
-        logger.info("SMTP email sent to %s via %s", email, settings.SMTP_HOST)
+        if response.status_code >= 400:
+            err_str = f"Brevo API returned {response.status_code}: {response.text}"
+            logger.error("Brevo API send FAILED to %s: %s", email, err_str)
+            return False, err_str
+
+        logger.info("Email sent to %s via Brevo API", email)
         return True, ""
     except Exception as exc:
         err_str = str(exc)
-        logger.error("SMTP send FAILED to %s via %s: %s", email, settings.SMTP_HOST, err_str)
+        logger.error("Brevo API send FAILED to %s: %s", email, err_str)
         return False, err_str
 
 
 def _send_verification_otp_smtp(email: str, full_name: Optional[str], otp: str) -> Tuple[bool, str]:
-    """Send email verification OTP using SMTP."""
+    """Send email verification OTP via Brevo's HTTP API."""
     name = full_name or "there"
     subject = "Your PinkScan verification code"
     html = f"""
@@ -108,16 +118,16 @@ def _send_password_reset_otp_smtp(email: str, full_name: Optional[str], otp: str
 
 
 async def send_verification_otp(email: str, full_name: Optional[str], otp: str) -> Tuple[bool, str]:
-    """Returns (ok, error_message). If SMTP is not configured, returns (True, "")."""
-    if not all([settings.SMTP_HOST, settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_FROM]):
-        logger.info("SMTP settings incomplete; skipping verification OTP send to %s", email)
+    """Returns (ok, error_message). If Brevo API is not configured, returns (True, "")."""
+    if not all([settings.BREVO_API_KEY, settings.SMTP_FROM]):
+        logger.info("Brevo API key not configured; skipping verification OTP send to %s", email)
         return True, ""
     return await asyncio.to_thread(_send_verification_otp_smtp, email, full_name, otp)
 
 
 async def send_password_reset_otp(email: str, full_name: Optional[str], otp: str) -> Tuple[bool, str]:
-    """Returns (ok, error_message). If SMTP is not configured, returns (True, "")."""
-    if not all([settings.SMTP_HOST, settings.SMTP_USER, settings.SMTP_PASS, settings.SMTP_FROM]):
-        logger.info("SMTP settings incomplete; skipping password reset OTP send to %s", email)
+    """Returns (ok, error_message). If Brevo API is not configured, returns (True, "")."""
+    if not all([settings.BREVO_API_KEY, settings.SMTP_FROM]):
+        logger.info("Brevo API key not configured; skipping password reset OTP send to %s", email)
         return True, ""
     return await asyncio.to_thread(_send_password_reset_otp_smtp, email, full_name, otp)

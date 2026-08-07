@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
-    # EMAIL (SMTP / Brevo)
+    # EMAIL (Brevo HTTP API)
+    BREVO_API_KEY: str = os.getenv("BREVO_API_KEY", "")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USER: str = os.getenv("SMTP_USER", "")
